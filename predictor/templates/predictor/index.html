@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NBA Performance Predictor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --court: #07080d; --panel: #0f1018; --card: #161820;
+      --border: rgba(255,255,255,0.06);
+      --orange: #f75c03; --orange-glow: rgba(247,92,3,0.22);
+      --gold: #ffd166; --text: #e2e2ee; --muted: #5a5a7a;
+      --green: #06d6a0; --red: #ef233c;
+    }
+
+    body {
+      background: var(--court); color: var(--text);
+      font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden;
+    }
+
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 50% 0%, rgba(247,92,3,0.06) 0%, transparent 70%),
+        repeating-linear-gradient(0deg, transparent, transparent 79px, rgba(255,255,255,0.015) 80px),
+        repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(255,255,255,0.015) 80px);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(7,8,13,0.85); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex; align-items: center; gap: 32px; height: 60px;
+    }
+    .nav-brand {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 3px;
+      background: linear-gradient(135deg, #fff, var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      text-decoration: none;
+    }
+    .nav-links { display: flex; gap: 4px; margin-left: auto; }
+    .nav-link {
+      padding: 6px 14px; border-radius: 8px; font-size: 0.85rem;
+      color: var(--muted); text-decoration: none; transition: color 0.2s, background 0.2s;
+    }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-link.active { color: var(--orange); background: rgba(247,92,3,0.1); }
+
+    /* ── prefill banner ── */
+    .prefill-banner {
+      display: none;
+      background: rgba(6,214,160,0.08); border: 1px solid rgba(6,214,160,0.25);
+      border-radius: 10px; padding: 10px 16px;
+      font-size: 0.85rem; color: var(--green);
+      margin-bottom: 20px;
+    }
+    .prefill-banner.visible { display: flex; align-items: center; gap: 8px; }
+
+    .wrapper {
+      position: relative; z-index: 1;
+      max-width: 960px; margin: 0 auto; padding: 40px 24px 80px;
+    }
+
+    header { text-align: center; margin-bottom: 36px; animation: fadeDown 0.6s ease both; }
+    .logo-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; }
+
+    .ball-icon {
+      width: 44px; height: 44px; background: var(--orange); border-radius: 50%;
+      position: relative; box-shadow: 0 0 24px var(--orange-glow); flex-shrink: 0;
+    }
+    .ball-icon::before { content: ''; position: absolute; inset: 6px; border: 2px solid rgba(0,0,0,0.35); border-radius: 50%; }
+    .ball-icon::after  { content: ''; position: absolute; top: 50%; left: -4px; right: -4px; height: 2px; background: rgba(0,0,0,0.3); transform: translateY(-50%); }
+
+    h1 {
+      font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.4rem, 6vw, 3.8rem);
+      letter-spacing: 3px; line-height: 1;
+      background: linear-gradient(135deg, #fff 30%, var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .subtitle { color: var(--muted); font-size: 0.92rem; letter-spacing: 2px; text-transform: uppercase; margin-top: 6px; }
+
+    .status-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 20px; margin-bottom: 32px; animation: fadeUp 0.5s 0.1s ease both;
+    }
+    .status-left { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: var(--muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background 0.3s, box-shadow 0.3s; }
+    .dot.online  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot.offline { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+    .api-url { font-size: 0.8rem; color: var(--muted); font-family: monospace; }
+
+    .layout { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+
+    .form-card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px; animation: fadeUp 0.5s 0.15s ease both;
+    }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 2px;
+      color: var(--orange); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+
+    .player-name-row { margin-bottom: 20px; }
+    .input-group { display: flex; flex-direction: column; gap: 6px; }
+
+    label { font-size: 0.78rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+    .hint { font-size: 0.7rem; color: #383850; margin-top: 2px; }
+
+    input[type="text"], input[type="number"] {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+      padding: 11px 14px; transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%; outline: none; -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-glow); }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+
+    .divider-label {
+      font-family: 'Bebas Neue', sans-serif; font-size: 0.9rem; letter-spacing: 2px;
+      color: var(--muted); margin: 4px 0 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .divider-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .btn-predict {
+      width: 100%; padding: 15px; background: var(--orange); border: none; border-radius: 12px;
+      color: #fff; font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 3px;
+      cursor: pointer; transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px var(--orange-glow);
+    }
+    .btn-predict:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(247,92,3,0.45); }
+    .btn-predict:active { transform: translateY(0); }
+    .btn-predict:disabled { background: #222; box-shadow: none; cursor: not-allowed; transform: none; }
+    .btn-predict .spinner {
+      display: none; width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto;
+    }
+    .btn-predict.loading .btn-text { display: none; }
+    .btn-predict.loading .spinner  { display: block; }
+
+    /* Result */
+    .result-panel {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 20px;
+      padding: 28px; animation: fadeUp 0.5s 0.2s ease both; position: sticky; top: 80px;
+    }
+    .result-empty { text-align: center; padding: 40px 0; }
+    .result-empty .empty-ball {
+      width: 64px; height: 64px; background: var(--card); border-radius: 50%;
+      margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;
+      font-size: 28px; border: 2px dashed var(--border);
+    }
+    .result-empty p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+
+    .score-display { display: none; }
+    .score-display.visible { display: block; animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+    .score-ring-wrap { display: flex; justify-content: center; margin-bottom: 24px; }
+    .score-ring { position: relative; width: 140px; height: 140px; }
+    .score-ring svg { transform: rotate(-90deg); width: 140px; height: 140px; }
+    .score-ring circle { fill: none; stroke-width: 10; stroke-linecap: round; }
+    .ring-bg   { stroke: var(--card); }
+    .ring-fill { stroke: var(--orange); stroke-dasharray: 376; stroke-dashoffset: 376; transition: stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1), stroke 0.5s; filter: drop-shadow(0 0 6px var(--orange)); }
+
+    .score-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .score-number { font-family: 'Bebas Neue', sans-serif; font-size: 2.6rem; line-height: 1; }
+    .score-label  { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+
+    .tier-badge { display: inline-block; padding: 6px 18px; border-radius: 100px; font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; letter-spacing: 2px; margin-bottom: 20px; }
+    .tier-Elite    { background: rgba(255,209,102,0.15); color: var(--gold);   border: 1px solid rgba(255,209,102,0.3); }
+    .tier-All-Star { background: rgba(247,92,3,0.15);    color: var(--orange); border: 1px solid rgba(247,92,3,0.3); }
+    .tier-Starter  { background: rgba(6,214,160,0.12);   color: var(--green);  border: 1px solid rgba(6,214,160,0.3); }
+    .tier-Rotation { background: rgba(120,120,200,0.12); color: #9a9aff;       border: 1px solid rgba(120,120,200,0.3); }
+    .tier-Bench    { background: rgba(107,107,138,0.12); color: var(--muted);  border: 1px solid var(--border); }
+
+    .result-player-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 2px; margin-bottom: 4px; }
+    .result-message { font-size: 0.85rem; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    .stats-breakdown { border-top: 1px solid var(--border); padding-top: 16px; display: grid; gap: 10px; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 0.83rem; }
+    .stat-key { color: var(--muted); }
+    .stat-val { font-weight: 600; }
+
+    .error-box {
+      display: none; background: rgba(239,35,60,0.1); border: 1px solid rgba(239,35,60,0.3);
+      border-radius: 12px; padding: 14px 16px; font-size: 0.88rem; color: #ff6b7a; margin-top: 16px;
+    }
+    .error-box.visible { display: block; animation: shake 0.4s ease; }
+
+    @keyframes fadeDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(20px)}  to{opacity:1;transform:translateY(0)} }
+    @keyframes popIn    { from{opacity:0;transform:scale(0.85)}       to{opacity:1;transform:scale(1)} }
+    @keyframes spin     { to{transform:rotate(360deg)} }
+    @keyframes shake    { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">🏀 NBA Predictor</a>
+  <div class="nav-links">
+    <a href="/" class="nav-link active">Predict</a>
+    <a href="/teams/" class="nav-link">Teams</a>
+  </div>
+</nav>
+
+<div class="wrapper">
+
+  <header>
+    <div class="logo-row">
+      <div class="ball-icon"></div>
+      <h1>NBA Performance Predictor</h1>
+    </div>
+    <p class="subtitle">XGBoost / LightGBM · Player Score Analysis</p>
+  </header>
+
+  <div class="status-bar">
+    <div class="status-left">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Checking server…</span>
+    </div>
+    <span class="api-url">http://127.0.0.1:8000</span>
+  </div>
+
+  <!-- prefill banner (shown when coming from roster page) -->
+  <div class="prefill-banner" id="prefill-banner">
+    ✅ <span id="prefill-msg">Stats pre-filled from roster.</span>
+  </div>
+
+  <div class="layout">
+    <div class="form-card">
+      <div class="section-title">Player Stats Input</div>
+      <form id="predict-form">
+
+        <div class="player-name-row input-group">
+          <label for="player_name">Player Name (optional)</label>
+          <input type="text" id="player_name" placeholder="e.g. LeBron James"/>
+        </div>
+
+        <div class="divider-label">Playmaking</div>
+        <div class="stats-grid">
+          <div class="input-group">
+            <label for="AST">AST — Assists</label>
+            <input type="number" id="AST" placeholder="7.2" step="0.1" required/>
+            <span class="hint">per game</span>
+          </div>
+          <div class="input-group">
+            <label for="TOV">TOV — Turnovers</label>
+            <input type="number" id="TOV" placeholder="3.1" step="0.1" required/>
+            <span class="hint">per game</span>
+          </div>
+        </div>
+
+        <div class="divider-label">Defense</div>
+        <div class="stats-grid">
+          <div class="input-group">
+            <label for="STL">STL — Steals</label>
+            <input type="number" id="STL" placeholder="1.3" step="0.1" required/>
+            <span class="hint">per game</span>
+          </div>
+          <div class="input-group">
+            <label for="BLK">BLK — Blocks</label>
+            <input type="number" id="BLK" placeholder="0.8" step="0.1" required/>
+            <span class="hint">per game</span>
+          </div>
+        </div>
+
+        <div class="divider-label">Shooting</div>
+        <div class="stats-grid">
+          <div class="input-group">
+            <label for="FG">FG% — Field Goal</label>
+            <input type="number" id="FG" placeholder="0.512" step="0.001" min="0" max="1" required/>
+            <span class="hint">decimal e.g. 0.51</span>
+          </div>
+          <div class="input-group">
+            <label for="3P">3P% — Three Point</label>
+            <input type="number" id="3P" placeholder="0.364" step="0.001" min="0" max="1" required/>
+            <span class="hint">decimal e.g. 0.36</span>
+          </div>
+          <div class="input-group">
+            <label for="FT">FT% — Free Throw</label>
+            <input type="number" id="FT" placeholder="0.731" step="0.001" min="0" max="1" required/>
+            <span class="hint">decimal e.g. 0.73</span>
+          </div>
+          <div class="input-group">
+            <label for="MP">MP — Minutes</label>
+            <input type="number" id="MP" placeholder="34.5" step="0.1" required/>
+            <span class="hint">per game</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-predict" id="predict-btn">
+          <span class="btn-text">Predict Performance</span>
+          <span class="spinner"></span>
+        </button>
+        <div class="error-box" id="error-box"></div>
+
+      </form>
+    </div>
+
+    <!-- Result panel -->
+    <div class="result-panel">
+      <div class="section-title">Result</div>
+      <div class="result-empty" id="result-empty">
+        <div class="empty-ball">🏀</div>
+        <p>Fill in the 8 player stats and hit <strong>Predict Performance</strong>.</p>
+      </div>
+      <div class="score-display" id="score-display">
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg viewBox="0 0 140 140">
+              <circle class="ring-bg"   cx="70" cy="70" r="60"/>
+              <circle class="ring-fill" id="ring-fill" cx="70" cy="70" r="60"/>
+            </svg>
+            <div class="score-center">
+              <span class="score-number" id="score-number">—</span>
+              <span class="score-label">Score</span>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-bottom:16px">
+          <div class="result-player-name" id="result-player-name"></div>
+          <div><span class="tier-badge" id="tier-badge">—</span></div>
+        </div>
+        <p class="result-message" id="result-message"></p>
+        <div class="stats-breakdown" id="stats-breakdown"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+// ── Health check ──────────────────────────────────────────────────────────
+async function checkHealth() {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  try {
+    const res  = await fetch(`${API}/api/health/`);
+    const data = await res.json();
+    if (data.status === 'ok' && data.model_loaded) {
+      dot.className = 'dot online';
+      txt.textContent = 'Server online · Model loaded';
+      txt.style.color = 'var(--green)';
+    } else {
+      dot.className = 'dot offline';
+      txt.textContent = 'Server online · Model NOT loaded';
+      txt.style.color = 'var(--gold)';
+    }
+  } catch {
+    dot.className = 'dot offline';
+    txt.textContent = 'Server offline — run: python manage.py runserver';
+    txt.style.color = 'var(--red)';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 10000);
+
+// ── Auto-fill from roster page ────────────────────────────────────────────
+(function prefillFromParams() {
+  const p = new URLSearchParams(window.location.search);
+  if (!p.get('player_name')) return;
+
+  const map = { player_name:'player_name', AST:'AST', STL:'STL', BLK:'BLK',
+                FGP:'FG', TPP:'3P', FTP:'FT', MP:'MP', TOV:'TOV' };
+
+  Object.entries(map).forEach(([param, id]) => {
+    const val = p.get(param);
+    const el  = document.getElementById(id);
+    if (val && el) el.value = val;
+  });
+
+  const banner = document.getElementById('prefill-banner');
+  const name   = p.get('player_name');
+  document.getElementById('prefill-msg').textContent =
+    `Stats pre-filled for ${name} from the roster page.`;
+  banner.classList.add('visible');
+})();
+
+// ── Form submit ───────────────────────────────────────────────────────────
+document.getElementById('predict-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn      = document.getElementById('predict-btn');
+  const errorBox = document.getElementById('error-box');
+  errorBox.className = 'error-box';
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  const payload = {
+    player_name: document.getElementById('player_name').value || undefined,
+    "AST": parseFloat(document.getElementById('AST').value),
+    "STL": parseFloat(document.getElementById('STL').value),
+    "BLK": parseFloat(document.getElementById('BLK').value),
+    "FG%": parseFloat(document.getElementById('FG').value),
+    "3P%": parseFloat(document.getElementById('3P').value),
+    "FT%": parseFloat(document.getElementById('FT').value),
+    "MP":  parseFloat(document.getElementById('MP').value),
+    "TOV": parseFloat(document.getElementById('TOV').value),
+  };
+
+  try {
+    const res  = await fetch(`${API}/api/predict/`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Prediction failed');
+    showResult(data, payload);
+  } catch(err) {
+    errorBox.textContent = '⚠️ ' + err.message;
+    errorBox.className = 'error-box visible';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+});
+
+// ── Show result ───────────────────────────────────────────────────────────
+function showResult(data, payload) {
+  document.getElementById('result-empty').style.display = 'none';
+  const score = data.performance_score;
+  const tier  = data.performance_tier;
+
+  const colors = { Elite:'#ffd166', 'All-Star':'#f75c03', Starter:'#06d6a0', Rotation:'#9a9aff', Bench:'#5a5a7a' };
+  const color  = colors[tier] || '#f75c03';
+  const ring   = document.getElementById('ring-fill');
+  ring.style.stroke = color;
+  ring.style.filter = `drop-shadow(0 0 6px ${color})`;
+  setTimeout(() => { ring.style.strokeDashoffset = 376 - (Math.min(score/100,1)*376); }, 50);
+
+  document.getElementById('score-number').textContent        = score.toFixed(1);
+  document.getElementById('result-player-name').textContent  = data.player_name || 'Player';
+  document.getElementById('result-message').textContent      = data.message;
+
+  const badge = document.getElementById('tier-badge');
+  badge.textContent = tier;
+  badge.className   = `tier-badge tier-${tier.replace(' ','-')}`;
+
+  document.getElementById('stats-breakdown').innerHTML = [
+    ['AST', payload['AST']],
+    ['STL', payload['STL']],
+    ['BLK', payload['BLK']],
+    ['FG%', (payload['FG%']*100).toFixed(1)+'%'],
+    ['3P%', (payload['3P%']*100).toFixed(1)+'%'],
+    ['FT%', (payload['FT%']*100).toFixed(1)+'%'],
+    ['MP',  payload['MP']],
+    ['TOV', payload['TOV']],
+  ].map(([k,v]) =>
+    `<div class="stat-row"><span class="stat-key">${k}</span><span class="stat-val">${v}</span></div>`
+  ).join('');
+
+  document.getElementById('score-display').className = 'score-display visible';
+}
+</script>
+</body>
+</html>

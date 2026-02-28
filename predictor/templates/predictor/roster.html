@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Roster — NBA 2024/25</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #07080d;
+      --surface: #0f1018;
+      --card:    #161820;
+      --border:  rgba(255,255,255,0.06);
+      --orange:  #f75c03;
+      --glow:    rgba(247,92,3,0.2);
+      --gold:    #ffd166;
+      --text:    #e2e2ee;
+      --muted:   #5a5a7a;
+      --green:   #06d6a0;
+      --blue:    #4cc9f0;
+    }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif; min-height: 100vh;
+    }
+
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 80% 10%, rgba(247,92,3,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 10% 90%, rgba(76,201,240,0.04) 0%, transparent 60%);
+      pointer-events: none; z-index: 0;
+    }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(7,8,13,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex; align-items: center; gap: 16px;
+      height: 60px;
+    }
+
+    .nav-brand {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 3px;
+      background: linear-gradient(135deg, #fff, var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      text-decoration: none;
+    }
+
+    .nav-sep { color: var(--border); font-size: 1.2rem; }
+
+    .nav-team {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.2rem; letter-spacing: 2px;
+      color: var(--orange);
+    }
+
+    .nav-links { display: flex; gap: 4px; margin-left: auto; }
+    .nav-link {
+      padding: 6px 14px; border-radius: 8px; font-size: 0.85rem;
+      color: var(--muted); text-decoration: none; transition: color 0.2s, background 0.2s;
+    }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    .wrapper {
+      position: relative; z-index: 1;
+      max-width: 1200px; margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 36px; flex-wrap: wrap; gap: 16px;
+      animation: fadeDown 0.5s ease both;
+    }
+
+    .header-left h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.8rem, 6vw, 4.5rem);
+      letter-spacing: 5px; line-height: 1;
+    }
+    .header-left h1 .abbr { color: var(--orange); }
+
+    .header-left p { color: var(--muted); font-size: 0.88rem; margin-top: 6px; letter-spacing: 1px; }
+
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 10px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--muted); text-decoration: none; font-size: 0.85rem;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .back-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 28px;
+      animation: fadeUp 0.4s 0.1s ease both;
+    }
+
+    .stat-pill {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 18px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .stat-pill .label { font-size: 0.7rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+    .stat-pill .value { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 2px; color: var(--orange); }
+
+    /* ── Search / filter row ── */
+    .filter-row {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 24px;
+      animation: fadeUp 0.4s 0.15s ease both;
+    }
+
+    .search-wrap { position: relative; flex: 1; max-width: 300px; }
+    .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; pointer-events: none; }
+    .search-input {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 0.88rem;
+      padding: 9px 13px 9px 36px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--glow); }
+    .search-input::placeholder { color: var(--muted); }
+
+    .pos-filter {
+      display: flex; gap: 4px;
+    }
+    .pos-btn {
+      padding: 7px 12px; border-radius: 8px; cursor: pointer;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--muted); font-size: 0.8rem; font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+    }
+    .pos-btn.active { background: var(--orange); border-color: var(--orange); color: #fff; }
+    .pos-btn:hover:not(.active) { border-color: rgba(255,255,255,0.2); color: var(--text); }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; overflow: hidden;
+      animation: fadeUp 0.4s 0.2s ease both;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead tr {
+      background: rgba(247,92,3,0.06);
+      border-bottom: 1px solid rgba(247,92,3,0.15);
+    }
+
+    th {
+      padding: 14px 16px; text-align: left;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.82rem; letter-spacing: 2px;
+      color: var(--orange); font-weight: 400;
+      cursor: pointer; user-select: none;
+      white-space: nowrap;
+    }
+    th:hover { color: var(--gold); }
+    th .sort-icon { opacity: 0.4; font-size: 10px; margin-left: 4px; }
+    th.sorted .sort-icon { opacity: 1; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+    td {
+      padding: 13px 16px; font-size: 0.88rem;
+      white-space: nowrap;
+    }
+
+    .player-name-cell {
+      font-weight: 600; color: var(--text);
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--orange), var(--gold));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+
+    .pos-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 6px;
+      font-size: 0.72rem; letter-spacing: 1px; font-weight: 600;
+    }
+    .pos-PG { background: rgba(76,201,240,0.15);  color: var(--blue); }
+    .pos-SG { background: rgba(247,92,3,0.15);    color: var(--orange); }
+    .pos-SF { background: rgba(6,214,160,0.15);   color: var(--green); }
+    .pos-PF { background: rgba(255,209,102,0.15); color: var(--gold); }
+    .pos-C  { background: rgba(180,80,255,0.15);  color: #c084fc; }
+
+    .stat-num { color: var(--text); }
+    .stat-highlight { color: var(--gold); font-weight: 600; }
+
+    .predict-btn {
+      padding: 5px 12px; border-radius: 7px;
+      background: rgba(247,92,3,0.1); border: 1px solid rgba(247,92,3,0.25);
+      color: var(--orange); font-size: 0.75rem; cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .predict-btn:hover { background: var(--orange); color: #fff; border-color: var(--orange); }
+
+    /* ── No results ── */
+    .no-results {
+      text-align: center; padding: 60px 20px;
+      color: var(--muted); font-size: 0.9rem;
+    }
+
+    /* ── Loading / error ── */
+    .state-box { text-align: center; padding: 80px 20px; color: var(--muted); }
+    .spinner-lg {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border); border-top-color: var(--orange);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)}  to{opacity:1;transform:translateY(0)} }
+    @keyframes spin     { to{transform:rotate(360deg)} }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">🏀 NBA Predictor</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-team" id="nav-team">—</span>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Predict</a>
+    <a href="/teams/" class="nav-link">Teams</a>
+  </div>
+</nav>
+
+<div class="wrapper">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1><span class="abbr" id="team-abbr">—</span> Roster</h1>
+      <p id="team-fullname">2024 / 25 Season</p>
+    </div>
+    <a href="/teams/" class="back-btn">← All Teams</a>
+  </div>
+
+  <!-- Stats pills -->
+  <div class="stats-bar" id="stats-bar" style="display:none">
+    <div class="stat-pill"><span class="label">Players</span><span class="value" id="pill-players">—</span></div>
+    <div class="stat-pill"><span class="label">Avg PTS</span><span class="value" id="pill-pts">—</span></div>
+    <div class="stat-pill"><span class="label">Avg AST</span><span class="value" id="pill-ast">—</span></div>
+    <div class="stat-pill"><span class="label">Avg REB</span><span class="value" id="pill-reb">—</span></div>
+  </div>
+
+  <!-- Filter row -->
+  <div class="filter-row" id="filter-row" style="display:none">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search" type="text" placeholder="Search player…"/>
+    </div>
+    <div class="pos-filter" id="pos-filter">
+      <button class="pos-btn active" data-pos="ALL">All</button>
+      <button class="pos-btn" data-pos="PG">PG</button>
+      <button class="pos-btn" data-pos="SG">SG</button>
+      <button class="pos-btn" data-pos="SF">SF</button>
+      <button class="pos-btn" data-pos="PF">PF</button>
+      <button class="pos-btn" data-pos="C">C</button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="state-box" id="loading">
+    <div class="spinner-lg"></div>
+    <p>Loading roster…</p>
+  </div>
+
+  <!-- Error -->
+  <div class="state-box hidden" id="error-state">
+    <p id="error-msg"></p>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap hidden" id="table-wrap">
+    <table id="roster-table">
+      <thead>
+        <tr>
+          <th data-col="name">Player <span class="sort-icon">↕</span></th>
+          <th data-col="Pos">Pos <span class="sort-icon">↕</span></th>
+          <th data-col="Age">Age <span class="sort-icon">↕</span></th>
+          <th data-col="G">G <span class="sort-icon">↕</span></th>
+          <th data-col="MP">MP <span class="sort-icon">↕</span></th>
+          <th data-col="PTS">PTS <span class="sort-icon">↕</span></th>
+          <th data-col="TRB">REB <span class="sort-icon">↕</span></th>
+          <th data-col="AST">AST <span class="sort-icon">↕</span></th>
+          <th data-col="STL">STL <span class="sort-icon">↕</span></th>
+          <th data-col="BLK">BLK <span class="sort-icon">↕</span></th>
+          <th data-col="FG%">FG% <span class="sort-icon">↕</span></th>
+          <th data-col="3P%">3P% <span class="sort-icon">↕</span></th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="roster-body"></tbody>
+    </table>
+    <div class="no-results hidden" id="no-results">No players match your search.</div>
+  </div>
+
+</div>
+
+<script>
+const API        = 'http://127.0.0.1:8000';
+const teamCode   = window.location.pathname.split('/').filter(Boolean).pop().toUpperCase();
+
+const TEAM_NAMES = {
+  ATL:'Atlanta Hawks',      BOS:'Boston Celtics',     BRK:'Brooklyn Nets',
+  CHO:'Charlotte Hornets',  CHI:'Chicago Bulls',      CLE:'Cleveland Cavaliers',
+  DAL:'Dallas Mavericks',   DEN:'Denver Nuggets',     DET:'Detroit Pistons',
+  GSW:'Golden State Warriors',HOU:'Houston Rockets',  IND:'Indiana Pacers',
+  LAC:'LA Clippers',        LAL:'Los Angeles Lakers', MEM:'Memphis Grizzlies',
+  MIA:'Miami Heat',         MIL:'Milwaukee Bucks',    MIN:'Minnesota Timberwolves',
+  NOP:'New Orleans Pelicans',NYK:'New York Knicks',   OKC:'Oklahoma City Thunder',
+  ORL:'Orlando Magic',      PHI:'Philadelphia 76ers', PHO:'Phoenix Suns',
+  POR:'Portland Trail Blazers',SAC:'Sacramento Kings',SAS:'San Antonio Spurs',
+  TOR:'Toronto Raptors',    UTA:'Utah Jazz',          WAS:'Washington Wizards',
+};
+
+let allPlayers   = [];
+let sortCol      = 'PTS';
+let sortAsc      = false;
+let filterPos    = 'ALL';
+let searchQuery  = '';
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.getElementById('nav-team').textContent   = teamCode;
+document.getElementById('team-abbr').textContent  = teamCode;
+document.getElementById('team-fullname').textContent =
+  (TEAM_NAMES[teamCode] || teamCode) + ' · 2024/25 Season';
+document.title = `${teamCode} Roster — NBA 2024/25`;
+
+async function loadRoster() {
+  try {
+    const res  = await fetch(`${API}/api/teams/${teamCode}/`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load roster');
+
+    allPlayers = data.players;
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('table-wrap').classList.remove('hidden');
+    document.getElementById('stats-bar').style.display  = 'flex';
+    document.getElementById('filter-row').style.display = 'flex';
+
+    renderPills(data.players);
+    renderTable();
+  } catch(e) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('error-state').classList.remove('hidden');
+    document.getElementById('error-msg').textContent = '⚠️ ' + e.message;
+  }
+}
+
+function avg(players, key) {
+  const vals = players.map(p => p[key]).filter(v => v != null);
+  if (!vals.length) return '—';
+  return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1);
+}
+
+function renderPills(players) {
+  document.getElementById('pill-players').textContent = players.length;
+  document.getElementById('pill-pts').textContent     = avg(players, 'PTS');
+  document.getElementById('pill-ast').textContent     = avg(players, 'AST');
+  document.getElementById('pill-reb').textContent     = avg(players, 'TRB');
+}
+
+function renderTable() {
+  let players = [...allPlayers];
+
+  // filter by position
+  if (filterPos !== 'ALL') {
+    players = players.filter(p => p.Pos && p.Pos.includes(filterPos));
+  }
+
+  // filter by search
+  if (searchQuery) {
+    players = players.filter(p => p.name.toLowerCase().includes(searchQuery));
+  }
+
+  // sort
+  players.sort((a, b) => {
+    const av = a[sortCol] ?? (sortCol === 'name' ? a.name : -Infinity);
+    const bv = b[sortCol] ?? (sortCol === 'name' ? b.name : -Infinity);
+    if (av < bv) return sortAsc ? -1 :  1;
+    if (av > bv) return sortAsc ?  1 : -1;
+    return 0;
+  });
+
+  // update sort icon
+  document.querySelectorAll('th').forEach(th => {
+    th.classList.remove('sorted');
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = '↕';
+  });
+  const activeTh = document.querySelector(`th[data-col="${sortCol}"]`);
+  if (activeTh) {
+    activeTh.classList.add('sorted');
+    const icon = activeTh.querySelector('.sort-icon');
+    if (icon) icon.textContent = sortAsc ? '↑' : '↓';
+  }
+
+  const body = document.getElementById('roster-body');
+  const noResults = document.getElementById('no-results');
+
+  if (!players.length) {
+    body.innerHTML = '';
+    noResults.classList.remove('hidden');
+    return;
+  }
+
+  noResults.classList.add('hidden');
+
+  const initials = name => name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+  const fmt      = (v, pct) => v != null ? (pct ? (v*100).toFixed(1)+'%' : v) : '—';
+  const posClass = pos => pos ? 'pos-' + pos.replace('-','').slice(0,2) : '';
+
+  body.innerHTML = players.map(p => `
+    <tr data-pos="${p.Pos || ''}">
+      <td>
+        <div class="player-name-cell">
+          <div class="avatar">${initials(p.name)}</div>
+          ${p.name}
+        </div>
+      </td>
+      <td><span class="pos-tag ${posClass(p.Pos)}">${p.Pos || '—'}</span></td>
+      <td class="stat-num">${p.Age ?? '—'}</td>
+      <td class="stat-num">${p.G  ?? '—'}</td>
+      <td class="stat-num">${p.MP ?? '—'}</td>
+      <td class="stat-highlight">${fmt(p.PTS)}</td>
+      <td class="stat-num">${fmt(p.TRB)}</td>
+      <td class="stat-num">${fmt(p.AST)}</td>
+      <td class="stat-num">${fmt(p.STL)}</td>
+      <td class="stat-num">${fmt(p.BLK)}</td>
+      <td class="stat-num">${fmt(p['FG%'], true)}</td>
+      <td class="stat-num">${fmt(p['3P%'], true)}</td>
+      <td>
+        <button class="predict-btn" onclick="predictPlayer('${p.name.replace(/'/g,"\\'")}', ${JSON.stringify(p)})">
+          ⚡ Predict
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+// ── Sorting ───────────────────────────────────────────────────────────────
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = false; }
+    renderTable();
+  });
+});
+
+// ── Search ────────────────────────────────────────────────────────────────
+document.getElementById('search').addEventListener('input', e => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  renderTable();
+});
+
+// ── Position filter ───────────────────────────────────────────────────────
+document.querySelectorAll('.pos-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterPos = btn.dataset.pos;
+    renderTable();
+  });
+});
+
+// ── Predict player (prefill form on index page) ───────────────────────────
+function predictPlayer(name, stats) {
+  const params = new URLSearchParams({
+    player_name: name,
+    AST: stats.AST ?? '',
+    STL: stats.STL ?? '',
+    BLK: stats.BLK ?? '',
+    FGP: stats['FG%'] ?? '',
+    TPP: stats['3P%'] ?? '',
+    FTP: stats['FT%'] ?? '',
+    MP:  stats.MP  ?? '',
+    TOV: stats.TOV ?? '',
+  });
+  window.location.href = `/?${params.toString()}`;
+}
+
+loadRoster();
+</script>
+</body>
+</html>

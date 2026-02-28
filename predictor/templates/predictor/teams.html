@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NBA Teams — 2024/25</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #07080d;
+      --surface:   #0f1018;
+      --card:      #161820;
+      --border:    rgba(255,255,255,0.06);
+      --orange:    #f75c03;
+      --glow:      rgba(247,92,3,0.2);
+      --gold:      #ffd166;
+      --text:      #e2e2ee;
+      --muted:     #5a5a7a;
+      --green:     #06d6a0;
+      --red:       #ef233c;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* animated mesh background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(247,92,3,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 90%, rgba(6,214,160,0.04) 0%, transparent 60%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(7,8,13,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex; align-items: center; gap: 32px;
+      height: 60px;
+    }
+
+    .nav-brand {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 3px;
+      background: linear-gradient(135deg, #fff, var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+
+    .nav-links { display: flex; gap: 4px; margin-left: auto; }
+    .nav-link {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s, background 0.2s;
+    }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-link.active { color: var(--orange); background: rgba(247,92,3,0.1); }
+
+    /* ── Page wrapper ── */
+    .wrapper {
+      position: relative; z-index: 1;
+      max-width: 1200px; margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      margin-bottom: 40px;
+      animation: fadeDown 0.5s ease both;
+    }
+
+    .page-header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      letter-spacing: 4px;
+      line-height: 1;
+    }
+
+    .page-header h1 span { color: var(--orange); }
+
+    .page-header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 8px;
+      letter-spacing: 1px;
+    }
+
+    /* ── Search ── */
+    .search-row {
+      display: flex; gap: 12px; align-items: center;
+      margin-bottom: 32px;
+      animation: fadeUp 0.4s 0.1s ease both;
+    }
+
+    .search-wrap {
+      position: relative; flex: 1; max-width: 360px;
+    }
+
+    .search-icon {
+      position: absolute; left: 14px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted); font-size: 14px; pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      padding: 10px 14px 10px 38px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--orange);
+      box-shadow: 0 0 0 3px var(--glow);
+    }
+    .search-input::placeholder { color: var(--muted); }
+
+    .count-badge {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.9rem;
+      letter-spacing: 2px;
+      color: var(--muted);
+      padding: 8px 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .count-badge span { color: var(--orange); }
+
+    /* ── Teams grid ── */
+    .teams-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      animation: fadeUp 0.4s 0.15s ease both;
+    }
+
+    .team-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 20px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .team-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--orange) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .team-card:hover {
+      border-color: rgba(247,92,3,0.4);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(247,92,3,0.15);
+    }
+    .team-card:hover::before { opacity: 0.05; }
+
+    .team-abbr {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      letter-spacing: 3px;
+      color: var(--orange);
+      line-height: 1;
+    }
+
+    .team-name-full {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .team-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: auto;
+    }
+
+    .player-count {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .player-count strong { color: var(--text); font-size: 1rem; }
+
+    .arrow {
+      width: 28px; height: 28px;
+      background: rgba(247,92,3,0.1);
+      border: 1px solid rgba(247,92,3,0.2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      color: var(--orange);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .team-card:hover .arrow {
+      background: var(--orange);
+      color: #fff;
+      transform: translateX(2px);
+    }
+
+    /* loading / error */
+    .state-box {
+      text-align: center; padding: 80px 20px;
+      color: var(--muted);
+    }
+    .state-box .icon { font-size: 48px; margin-bottom: 16px; }
+    .state-box p { font-size: 0.9rem; line-height: 1.7; }
+    .spinner-lg {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--orange);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    /* hidden */
+    .hidden { display: none !important; }
+
+    @keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)}  to{opacity:1;transform:translateY(0)} }
+    @keyframes spin     { to{transform:rotate(360deg)} }
+
+    /* stagger cards */
+    .team-card { animation: fadeUp 0.3s ease both; }
+    .team-card:nth-child(1)  { animation-delay: 0.05s }
+    .team-card:nth-child(2)  { animation-delay: 0.07s }
+    .team-card:nth-child(3)  { animation-delay: 0.09s }
+    .team-card:nth-child(4)  { animation-delay: 0.11s }
+    .team-card:nth-child(5)  { animation-delay: 0.13s }
+    .team-card:nth-child(6)  { animation-delay: 0.15s }
+    .team-card:nth-child(n+7){ animation-delay: 0.17s }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">🏀 NBA Predictor</a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Predict</a>
+    <a href="/teams/" class="nav-link active">Teams</a>
+  </div>
+</nav>
+
+<div class="wrapper">
+
+  <div class="page-header">
+    <h1>NBA <span>Teams</span></h1>
+    <p>2024 / 25 Season · Select a team to view its full roster</p>
+  </div>
+
+  <div class="search-row">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search" type="text" placeholder="Search team…"/>
+    </div>
+    <div class="count-badge" id="count-badge"><span id="visible-count">—</span> teams</div>
+  </div>
+
+  <!-- Loading -->
+  <div class="state-box" id="loading">
+    <div class="spinner-lg"></div>
+    <p>Loading teams…</p>
+  </div>
+
+  <!-- Error -->
+  <div class="state-box hidden" id="error-state">
+    <div class="icon">⚠️</div>
+    <p id="error-msg">Could not load teams.</p>
+  </div>
+
+  <!-- Grid -->
+  <div class="teams-grid hidden" id="teams-grid"></div>
+
+</div>
+
+<script>
+// Team full names map (standard NBA abbreviations)
+const TEAM_NAMES = {
+  ATL:'Atlanta Hawks',      BOS:'Boston Celtics',     BRK:'Brooklyn Nets',
+  CHO:'Charlotte Hornets',  CHI:'Chicago Bulls',      CLE:'Cleveland Cavaliers',
+  DAL:'Dallas Mavericks',   DEN:'Denver Nuggets',     DET:'Detroit Pistons',
+  GSW:'Golden State Warriors', HOU:'Houston Rockets', IND:'Indiana Pacers',
+  LAC:'LA Clippers',        LAL:'Los Angeles Lakers', MEM:'Memphis Grizzlies',
+  MIA:'Miami Heat',         MIL:'Milwaukee Bucks',    MIN:'Minnesota Timberwolves',
+  NOP:'New Orleans Pelicans',NYK:'New York Knicks',   OKC:'Oklahoma City Thunder',
+  ORL:'Orlando Magic',      PHI:'Philadelphia 76ers', PHO:'Phoenix Suns',
+  POR:'Portland Trail Blazers',SAC:'Sacramento Kings',SAS:'San Antonio Spurs',
+  TOR:'Toronto Raptors',    UTA:'Utah Jazz',          WAS:'Washington Wizards',
+};
+
+const API = 'http://127.0.0.1:8000';
+
+async function loadTeams() {
+  try {
+    const res  = await fetch(`${API}/api/teams/`);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Failed to load teams');
+
+    document.getElementById('loading').classList.add('hidden');
+    renderTeams(data.teams);
+  } catch(e) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('error-state').classList.remove('hidden');
+    document.getElementById('error-msg').textContent =
+      '⚠️ ' + e.message + ' — make sure the Django server is running.';
+  }
+}
+
+function renderTeams(teams) {
+  const grid = document.getElementById('teams-grid');
+  grid.classList.remove('hidden');
+  grid.innerHTML = '';
+
+  teams.forEach(t => {
+    const card = document.createElement('a');
+    card.className   = 'team-card';
+    card.href        = `/teams/${t.team}/`;
+    card.dataset.team = t.team.toLowerCase();
+    card.innerHTML = `
+      <div class="team-abbr">${t.team}</div>
+      <div class="team-name-full">${TEAM_NAMES[t.team] || t.team}</div>
+      <div class="team-meta">
+        <div class="player-count"><strong>${t.player_count}</strong> players</div>
+        <div class="arrow">→</div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  updateCount();
+}
+
+function updateCount() {
+  const visible = document.querySelectorAll('.team-card:not(.hidden)').length;
+  document.getElementById('visible-count').textContent = visible;
+}
+
+// Search filter
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  document.querySelectorAll('.team-card').forEach(card => {
+    const match = card.dataset.team.includes(q) ||
+                  card.querySelector('.team-name-full').textContent.toLowerCase().includes(q);
+    card.classList.toggle('hidden', !match);
+  });
+  updateCount();
+});
+
+loadTeams();
+</script>
+</body>
+</html>
