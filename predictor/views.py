@@ -2,6 +2,8 @@ import joblib
 import numpy as np
 import os
 import json
+import re
+import unicodedata
 import pandas as pd
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -24,13 +26,35 @@ else:
     print(f"⚠️  Model not found at {MODEL_PATH}.")
 
 # ── Load player info cache (Age + Pos from internet) ─────────────────────────
-player_info = {}
+player_info      = {}
+player_info_norm = {}   # normalized-name → info, for fuzzy lookup
+
+def _normalize_name(name):
+    """Normalize player name: remove accents, suffixes (Jr/Sr/II/III), punctuation."""
+    if not name:
+        return ""
+    name = unicodedata.normalize("NFD", str(name))
+    name = "".join(c for c in name if unicodedata.category(c) != "Mn")
+    name = name.lower()
+    name = re.sub(r"[''`\.]", "", name)
+    name = re.sub(r"\s+(jr|sr|ii|iii|iv)$", "", name.strip())
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
+
 if os.path.exists(PLAYER_INFO_PATH):
-    with open(PLAYER_INFO_PATH, "r") as f:
+    with open(PLAYER_INFO_PATH, "r", encoding="utf-8") as f:
         player_info = json.load(f)
-    print(f"✅ Player info cache loaded: {len(player_info)} players")
+    player_info_norm = {_normalize_name(k): v for k, v in player_info.items()}
+    print(f"✅ Player info cache loaded: {len(player_info)} players ({len(player_info_norm)} normalized)")
 else:
     print(f"⚠️  No player_info.json found. Run: python manage.py fetch_player_info")
+
+def _lookup_player(name):
+    """Look up player info: exact match first, then normalized fuzzy match."""
+    if name in player_info:
+        return player_info[name]
+    norm = _normalize_name(name)
+    return player_info_norm.get(norm, {})
 
 # ── Load & preprocess dataset ─────────────────────────────────────────────────
 df     = None
@@ -88,7 +112,6 @@ if os.path.exists(DATA_PATH):
 
     # Build averaged stats
     agg_dict = {}
-    # Only include Pos/Age from dataset if they actually exist and aren't blank
     for c in ["Pos", "Age"]:
         if c in df.columns and df[c].notna().sum() > 0:
             agg_dict[c] = "first"
@@ -116,31 +139,28 @@ if os.path.exists(DATA_PATH):
 
     # ── Inject Age + Pos from player_info cache ───────────────────────────
     if player_info:
-        def get_pos(name):
-            info = player_info.get(name, {})
-            return info.get("Pos") or None
-
-        def get_age(name):
-            info = player_info.get(name, {})
-            return info.get("Age") or None
-
-        # Always overwrite with internet data (more reliable)
-        df_avg["Pos"] = df_avg["Player"].apply(get_pos)
-        df_avg["Age"] = df_avg["Player"].apply(get_age)
+        df_avg["Pos"] = df_avg["Player"].apply(lambda n: _lookup_player(n).get("Pos") or None)
+        df_avg["Age"] = df_avg["Player"].apply(lambda n: _lookup_player(n).get("Age") or None)
         filled = df_avg["Pos"].notna().sum()
         print(f"✅ Injected Pos/Age for {filled}/{len(df_avg)} players from cache")
 
-    # Clean types
+    # ── Clean types ───────────────────────────────────────────────────────
     if "Age" in df_avg.columns:
-        df_avg["Age"] = pd.to_numeric(df_avg["Age"], errors="coerce").fillna(0).astype(int)
-        df_avg["Age"] = df_avg["Age"].replace(0, None)
+        df_avg["Age"] = pd.to_numeric(df_avg["Age"], errors="coerce")
+        df_avg["Age"] = df_avg["Age"].apply(lambda x: int(x) if pd.notna(x) and x != 0 else None)
 
     df_avg["G"] = df_avg["G"].fillna(0).astype(int)
 
+    # FIX: handle NaN floats before calling .split() on Pos
     if "Pos" in df_avg.columns:
-        df_avg["Pos"] = df_avg["Pos"].astype(str).apply(
-            lambda x: x.split("-")[0].strip() if x not in ("None", "nan", "") else None
-        )
+        def clean_pos(x):
+            if pd.isna(x) or x is None:
+                return None
+            s = str(x).strip()
+            if s in ("None", "nan", ""):
+                return None
+            return s.split("-")[0].strip()
+        df_avg["Pos"] = df_avg["Pos"].apply(clean_pos)
 
     for c in pct_cols:
         if c in df_avg.columns:
@@ -152,6 +172,15 @@ if os.path.exists(DATA_PATH):
 else:
     print(f"⚠️  Dataset not found at {DATA_PATH}.")
 
+
+# ── Load similarity model ────────────────────────────────────────────────────
+SIM_MODEL_PATH = os.path.join(os.path.dirname(__file__), "model", "similarity_model.pkl")
+sim_bundle = None
+if os.path.exists(SIM_MODEL_PATH):
+    sim_bundle = joblib.load(SIM_MODEL_PATH)
+    print(f"✅ Similarity model loaded: {len(sim_bundle['players'])} players")
+else:
+    print(f"⚠️  No similarity model found. Run: python train_similarity.py")
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 def get_tier(score: float) -> str:
@@ -166,6 +195,13 @@ def get_tier(score: float) -> str:
 def index(request):
     return render(request, "predictor/index.html")
 
+def login_page(request):
+    return render(request, "login.html")
+
+def similar_page(request):
+    q = request.GET.get("q", "")
+    return render(request, "predictor/similar.html", {"initial_query": q})
+
 def teams_page(request):
     return render(request, "predictor/teams.html")
 
@@ -177,13 +213,17 @@ def roster_page(request, team_code):
 @method_decorator(csrf_exempt, name='dispatch')
 class HealthView(APIView):
     def get(self, request):
+        sample = []
+        if df_avg is not None:
+            # Replace NaN/inf with None so JSON serialization works
+            sample = df_avg.head(3).where(df_avg.head(3).notna(), other=None).to_dict(orient="records")
         return Response({
             "status":            "ok",
             "model_loaded":      model is not None,
             "dataset_loaded":    df_avg is not None,
             "player_info_cache": len(player_info),
             "columns":           df_avg.columns.tolist() if df_avg is not None else [],
-            "sample":            df_avg.head(3).to_dict(orient="records") if df_avg is not None else [],
+            "sample":            sample,
         })
 
 
@@ -240,6 +280,110 @@ class RosterView(APIView):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
+class SimilarPlayersView(APIView):
+    """GET /api/similar/<player_name>/?n=5 — Return N most similar players."""
+    def get(self, request, player_name):
+        if sim_bundle is None:
+            return Response(
+                {"error": "Similarity model not loaded. Run: python train_similarity.py"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        players  = sim_bundle["players"]
+        X_scaled = sim_bundle["X_scaled"]
+        knn      = sim_bundle["knn"]
+        n        = min(int(request.GET.get("n", 5)), 10)
+
+        # Find player index — exact → case-insensitive → normalized fuzzy → partial
+        q_norm = _normalize_name(player_name)
+
+        idx = next((i for i, p in enumerate(players) if p["name"] == player_name), None)
+        if idx is None:
+            idx = next((i for i, p in enumerate(players) if p["name"].lower() == player_name.lower()), None)
+        if idx is None:
+            idx = next((i for i, p in enumerate(players) if _normalize_name(p["name"]) == q_norm), None)
+        if idx is None:
+            idx = next((i for i, p in enumerate(players) if player_name.lower() in p["name"].lower()), None)
+        if idx is None:
+            # Return closest suggestions
+            suggestions = sorted(
+                [p["name"] for p in players if q_norm[:4] in _normalize_name(p["name"])],
+            )[:8]
+            return Response({
+                "error":       f"Player '{player_name}' not found in similarity model.",
+                "suggestions": suggestions or sorted([p["name"] for p in players])[:20],
+                "hint":        "Use /api/players/?q=name to search."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # KNN query
+        distances, indices = knn.kneighbors([X_scaled[idx]])
+
+        def clean(v):
+            """Replace NaN/inf floats with None for JSON safety."""
+            if v is None:
+                return None
+            try:
+                if isinstance(v, float) and (v != v or v == float('inf') or v == float('-inf')):
+                    return None
+            except Exception:
+                pass
+            return v
+
+        query_player = players[idx]
+        similar = []
+        for dist, i in zip(distances[0][1:n+1], indices[0][1:n+1]):
+            p   = players[i]
+            sim = round((1 - float(dist)) * 100, 1)
+            similar.append({
+                "name":       p["name"],
+                "similarity": sim,
+                "Pos":        clean(p.get("Pos")),
+                "Age":        clean(p.get("Age")),
+                "PTS":        clean(p.get("PTS")),
+                "AST":        clean(p.get("AST")),
+                "TRB":        clean(p.get("TRB")),
+                "STL":        clean(p.get("STL")),
+                "BLK":        clean(p.get("BLK")),
+                "MP":         clean(p.get("MP")),
+                "FG%":        clean(p.get("FG%")),
+                "3P%":        clean(p.get("3P%")),
+                "FT%":        clean(p.get("FT%")),
+            })
+
+        q = query_player
+        return Response({
+            "query":   {
+                "name": q["name"],
+                "Pos":  clean(q.get("Pos")),
+                "PTS":  clean(q.get("PTS")),
+                "AST":  clean(q.get("AST")),
+            },
+            "similar": similar,
+            "total":   len(similar),
+        })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PlayersSearchView(APIView):
+    """GET /api/players/?q=curry — Search player names for autocomplete."""
+    def get(self, request):
+        if sim_bundle is None:
+            return Response({"error": "Similarity model not loaded."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        q       = request.GET.get("q", "").lower().strip()
+        players = sim_bundle["players"]
+        if q:
+            # fuzzy: check normalized name too so "doncic" finds "Luka Dončić"
+            matches = [
+                p["name"] for p in players
+                if q in p["name"].lower() or q in _normalize_name(p["name"])
+            ]
+        else:
+            matches = [p["name"] for p in players]
+        matches.sort()
+        return Response({"players": matches, "total": len(matches)})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class PredictView(APIView):
     def post(self, request):
         if model is None:
@@ -269,4 +413,4 @@ class PredictView(APIView):
         except ValueError as e:
             return Response({"error": f"Invalid value: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

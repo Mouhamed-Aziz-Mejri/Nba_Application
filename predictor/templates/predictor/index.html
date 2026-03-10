@@ -212,6 +212,8 @@
   <div class="nav-links">
     <a href="/" class="nav-link active">Predict</a>
     <a href="/teams/" class="nav-link">Teams</a>
+    <a href="/similar/" class="nav-link">Similarity</a>
+    <a href="/login/" class="nav-link" style="color:var(--gold);border:1px solid rgba(255,209,102,0.2);margin-left:8px">⚡ Login</a>
   </div>
 </nav>
 
@@ -225,13 +227,13 @@
     <p class="subtitle">XGBoost / LightGBM · Player Score Analysis</p>
   </header>
 
-  <div class="status-bar">
+  {% comment %} <div class="status-bar">
     <div class="status-left">
       <div class="dot" id="status-dot"></div>
       <span id="status-text">Checking server…</span>
     </div>
     <span class="api-url">http://127.0.0.1:8000</span>
-  </div>
+  </div> {% endcomment %}
 
   <!-- prefill banner (shown when coming from roster page) -->
   <div class="prefill-banner" id="prefill-banner">
