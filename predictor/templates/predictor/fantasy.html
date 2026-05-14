@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fantasy League — NBA 2024/25</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --court:#07080d;--panel:#0f1018;--card:#161820;--border:rgba(255,255,255,0.06);
+      --orange:#f75c03;--glow:rgba(247,92,3,0.22);--gold:#ffd166;
+      --text:#e2e2ee;--muted:#5a5a7a;--green:#06d6a0;--red:#ef233c;
+      --blue:#4cc9f0;--purple:#c084fc;
+      --grass:#1a4a2e;--grass-light:#1f5535;--grass-line:rgba(255,255,255,0.12);
+      --slot-empty:rgba(255,255,255,0.06);--slot-ring:rgba(247,92,3,0.5);
+    }
+    body{background:var(--court);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+    body::before{
+      content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+      background:
+        radial-gradient(ellipse 60% 40% at 50% 0%,rgba(247,92,3,0.05) 0%,transparent 65%),
+        repeating-linear-gradient(0deg,transparent,transparent 79px,rgba(255,255,255,0.01) 80px),
+        repeating-linear-gradient(90deg,transparent,transparent 79px,rgba(255,255,255,0.01) 80px);
+    }
+
+    /* ── Nav ── */
+    nav{position:sticky;top:0;z-index:200;background:rgba(7,8,13,0.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;gap:24px;height:60px;}
+    .nav-brand{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;background:linear-gradient(135deg,#fff,var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-decoration:none;}
+    .nav-links{display:flex;gap:4px;margin-left:auto;}
+    .nav-link{padding:6px 14px;border-radius:8px;font-size:0.85rem;color:var(--muted);text-decoration:none;transition:color .2s,background .2s;}
+    .nav-link:hover{color:var(--text);background:rgba(255,255,255,0.05);}
+    .nav-link.active{color:var(--orange);background:rgba(247,92,3,0.1);}
+
+    .wrapper{position:relative;z-index:1;max-width:1300px;margin:0 auto;padding:28px 20px 80px;}
+
+    /* ── Header ── */
+    .page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:24px;}
+    .page-header h1{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:4px;background:linear-gradient(135deg,#fff 30%,var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .page-header p{color:var(--muted);font-size:0.8rem;letter-spacing:1px;margin-top:2px;}
+    .tab-switcher{display:flex;gap:4px;background:var(--card);border-radius:10px;padding:4px;}
+    .tab-btn{padding:8px 18px;border-radius:7px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:600;color:var(--muted);background:transparent;transition:all .2s;}
+    .tab-btn.active{background:var(--panel);color:var(--orange);box-shadow:0 1px 4px rgba(0,0,0,0.3);}
+
+    /* ── Setup screen ── */
+    .setup-screen{display:flex;align-items:center;justify-content:center;min-height:60vh;}
+    .setup-card{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:40px 36px;max-width:460px;width:100%;text-align:center;}
+    .setup-icon{font-size:52px;margin-bottom:16px;}
+    .setup-card h2{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;color:var(--orange);margin-bottom:10px;}
+    .setup-card p{color:var(--muted);font-size:0.88rem;line-height:1.8;margin-bottom:24px;}
+    .setup-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:1rem;padding:13px 16px;outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:12px;}
+    .setup-input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--glow);}
+    .btn-primary{width:100%;padding:14px;border-radius:12px;background:var(--orange);border:none;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:3px;cursor:pointer;transition:transform .15s,box-shadow .2s;box-shadow:0 4px 20px var(--glow);}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(247,92,3,.45);}
+    .btn-primary:disabled{background:#1a1c2e;color:var(--muted);box-shadow:none;cursor:not-allowed;transform:none;}
+
+    /* ── Main layout ── */
+    .main-grid{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start;}
+    @media(max-width:1000px){.main-grid{grid-template-columns:1fr;}}
+
+    /* ══════════════════════════════════════════════════════
+       BASKETBALL COURT
+    ══════════════════════════════════════════════════════ */
+    .court-wrap{
+      background:var(--grass);
+      border-radius:20px;overflow:hidden;
+      border:2px solid rgba(255,255,255,0.08);
+      position:relative;
+      box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    }
+    /* Alternating grass stripes */
+    .court-wrap::before{
+      content:'';position:absolute;inset:0;
+      background:repeating-linear-gradient(
+        180deg,
+        transparent 0px, transparent 40px,
+        rgba(0,0,0,0.06) 40px, rgba(0,0,0,0.06) 80px
+      );
+      pointer-events:none;z-index:0;
+    }
+
+    /* Court SVG lines overlay */
+    .court-lines{position:absolute;inset:0;z-index:1;pointer-events:none;}
+
+    /* Player slots container */
+    .court-inner{
+      position:relative;z-index:2;
+      padding:36px 28px 40px;
+      min-height:480px;
+    }
+
+    /* Formation: 1-2-2 (basketball style)
+       Row 1 (top):    C
+       Row 2 (mid):    PF   SF
+       Row 3 (bottom): PG   SG
+    */
+    .formation{
+      display:flex;flex-direction:column;gap:32px;
+      align-items:center;
+    }
+    .form-row{display:flex;gap:60px;justify-content:center;align-items:center;}
+
+    /* Player slot */
+    .player-slot{
+      display:flex;flex-direction:column;align-items:center;gap:8px;
+      cursor:pointer;position:relative;
+      animation:slotIn .4s ease both;
+    }
+    .slot-circle{
+      width:72px;height:72px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      position:relative;transition:transform .2s,box-shadow .2s;
+    }
+    .player-slot:hover .slot-circle{transform:scale(1.08);}
+
+    /* Empty slot */
+    .slot-empty .slot-circle{
+      background:rgba(255,255,255,0.05);
+      border:2px dashed rgba(255,255,255,0.2);
+      box-shadow:none;
+    }
+    .slot-empty .slot-circle::after{
+      content:'+';font-size:26px;color:rgba(255,255,255,0.3);
+      font-weight:300;line-height:1;
+    }
+    .slot-empty:hover .slot-circle{
+      border-color:var(--orange);
+      background:rgba(247,92,3,0.08);
+      box-shadow:0 0 20px rgba(247,92,3,0.2);
+    }
+    .slot-empty:hover .slot-circle::after{color:var(--orange);}
+
+    /* Filled slot */
+    .slot-filled .slot-circle{
+      background:linear-gradient(135deg,var(--orange),#c44a00);
+      border:2px solid rgba(255,255,255,0.2);
+      box-shadow:0 0 24px rgba(247,92,3,0.4),0 4px 16px rgba(0,0,0,0.4);
+    }
+    .slot-filled .slot-circle::after{display:none;}
+    .slot-avatar{
+      font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;
+      color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.4);
+    }
+    .slot-pos-badge{
+      position:absolute;bottom:-4px;right:-4px;
+      width:22px;height:22px;border-radius:50%;
+      font-family:'Bebas Neue',sans-serif;font-size:9px;letter-spacing:.5px;
+      display:flex;align-items:center;justify-content:center;
+      border:1.5px solid var(--court);
+      box-shadow:0 2px 6px rgba(0,0,0,0.4);
+    }
+    .badge-PG{background:#4cc9f0;color:#000;}
+    .badge-SG{background:#f75c03;color:#fff;}
+    .badge-SF{background:#06d6a0;color:#000;}
+    .badge-PF{background:#ffd166;color:#000;}
+    .badge-C {background:#c084fc;color:#fff;}
+
+    .slot-name{
+      font-family:'Bebas Neue',sans-serif;font-size:0.72rem;letter-spacing:1.5px;
+      color:#fff;text-align:center;
+      text-shadow:0 1px 4px rgba(0,0,0,0.8);
+      max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .slot-pos-label{
+      font-size:0.62rem;letter-spacing:1.5px;text-transform:uppercase;
+      text-shadow:0 1px 4px rgba(0,0,0,0.8);
+    }
+    .slot-empty .slot-pos-label{color:rgba(255,255,255,0.4);}
+    .slot-filled .slot-pos-label{color:rgba(255,255,255,0.7);}
+    .slot-score{
+      font-family:'Bebas Neue',sans-serif;font-size:0.8rem;
+      color:var(--gold);text-shadow:0 1px 4px rgba(0,0,0,0.8);
+    }
+
+    /* Active slot (picker open) */
+    .player-slot.picking .slot-circle{
+      border-color:var(--orange)!important;
+      box-shadow:0 0 0 4px rgba(247,92,3,0.3),0 0 24px rgba(247,92,3,0.4)!important;
+      animation:pulse .8s ease infinite;
+    }
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(247,92,3,.3),0 0 24px rgba(247,92,3,.4)}50%{box-shadow:0 0 0 8px rgba(247,92,3,.15),0 0 32px rgba(247,92,3,.5)}}
+
+    /* ── Stats bar under court ── */
+    .team-stats-bar{
+      display:grid;grid-template-columns:repeat(5,1fr);gap:0;
+      background:rgba(0,0,0,0.3);border-top:1px solid rgba(255,255,255,0.06);
+      position:relative;z-index:2;
+    }
+    .stat-cell{padding:12px 8px;text-align:center;border-right:1px solid rgba(255,255,255,0.06);}
+    .stat-cell:last-child{border-right:none;}
+    .stat-cell .lbl{font-size:0.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);}
+    .stat-cell .val{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:var(--orange);margin-top:2px;}
+
+    /* ── Right panel ── */
+    .right-panel{}
+    .panel-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px;}
+    .panel-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2.5px;color:var(--orange);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+
+    /* Team info */
+    .team-name-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+    .team-avatar{width:40px;height:40px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:13px;color:#fff;box-shadow:0 0 14px var(--glow);flex-shrink:0;}
+    .team-name-txt{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;}
+    .team-rank-badge{margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:0.72rem;letter-spacing:1px;padding:3px 9px;border-radius:6px;background:rgba(255,209,102,0.1);border:1px solid rgba(255,209,102,0.2);color:var(--gold);}
+
+    .metrics-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+    .metric-box{background:var(--card);border-radius:10px;padding:10px 12px;text-align:center;}
+    .metric-box .lbl{font-size:0.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);}
+    .metric-box .val{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:1px;color:var(--orange);margin-top:2px;}
+
+    .budget-row-txt{display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-bottom:5px;}
+    .budget-bar{height:5px;background:var(--card);border-radius:3px;overflow:hidden;}
+    .budget-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--orange));transition:width .5s ease;}
+    .budget-fill.danger{background:linear-gradient(90deg,var(--orange),var(--red));}
+
+    /* Scoring formula */
+    .formula-grid{display:flex;flex-wrap:wrap;gap:5px;}
+    .formula-chip{padding:4px 9px;border-radius:6px;background:var(--card);border:1px solid var(--border);font-size:0.7rem;}
+    .formula-chip .stat{color:var(--text);font-weight:600;}
+    .formula-chip .mult{color:var(--gold);}
+
+    /* ══════════════════════════════════════════════════════
+       PLAYER PICKER DRAWER
+    ══════════════════════════════════════════════════════ */
+    .picker-overlay{
+      position:fixed;inset:0;z-index:300;
+      background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);
+      display:none;align-items:flex-end;
+      animation:fadeIn .2s ease;
+    }
+    .picker-overlay.open{display:flex;}
+    .picker-drawer{
+      width:100%;max-width:560px;margin:0 auto;
+      background:var(--panel);border-radius:24px 24px 0 0;
+      border:1px solid var(--border);border-bottom:none;
+      max-height:80vh;display:flex;flex-direction:column;
+      animation:slideUp .3s cubic-bezier(.4,0,.2,1);
+    }
+    .drawer-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0;}
+    .drawer-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);}
+    .drawer-pos-title{
+      display:flex;align-items:center;gap:10px;margin-bottom:10px;
+    }
+    .drawer-pos-badge{
+      width:36px;height:36px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Bebas Neue',sans-serif;font-size:13px;color:#fff;
+    }
+    .drawer-pos-title h3{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#fff;}
+    .drawer-pos-title p{font-size:0.8rem;color:var(--muted);margin-top:1px;}
+    .drawer-search{
+      width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;
+      color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;
+      padding:9px 14px;outline:none;transition:border-color .2s;
+    }
+    .drawer-search:focus{border-color:var(--orange);}
+    .drawer-search::placeholder{color:var(--muted);}
+    .drawer-list{overflow-y:auto;flex:1;padding:8px 12px 20px;}
+
+    /* Player row in picker */
+    .pick-row{
+      display:flex;align-items:center;gap:12px;
+      padding:10px 10px;border-radius:10px;cursor:pointer;
+      border:1px solid transparent;
+      transition:background .15s,border-color .15s;
+      margin-bottom:4px;
+    }
+    .pick-row:hover{background:rgba(247,92,3,0.06);border-color:rgba(247,92,3,0.15);}
+    .pick-row.selected{background:rgba(247,92,3,0.1);border-color:rgba(247,92,3,0.3);}
+    .pick-row.disabled{opacity:.35;cursor:not-allowed;pointer-events:none;}
+    .pick-avatar{
+      width:40px;height:40px;border-radius:50%;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Bebas Neue',sans-serif;font-size:12px;color:#fff;
+    }
+    .pick-info{flex:1;min-width:0;}
+    .pick-name{font-size:0.88rem;font-weight:600;color:var(--text);}
+    .pick-meta{font-size:0.72rem;color:var(--muted);margin-top:2px;}
+    .pick-score{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--gold);flex-shrink:0;}
+    .pick-salary{font-size:0.72rem;color:var(--muted);text-align:right;}
+    .pick-tier{font-size:0.62rem;letter-spacing:1px;padding:2px 6px;border-radius:4px;flex-shrink:0;}
+    .tier-Superstar{background:rgba(255,209,102,.12);color:var(--gold);border:1px solid rgba(255,209,102,.2);}
+    .tier-Star{background:rgba(247,92,3,.1);color:var(--orange);border:1px solid rgba(247,92,3,.2);}
+    .tier-Starter{background:rgba(6,214,160,.08);color:var(--green);border:1px solid rgba(6,214,160,.15);}
+    .tier-Rotation{background:rgba(76,201,240,.08);color:var(--blue);border:1px solid rgba(76,201,240,.15);}
+    .tier-Bench{background:rgba(90,90,122,.08);color:var(--muted);border:1px solid var(--border);}
+
+    .drawer-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:.88rem;}
+    .drawer-loading{text-align:center;padding:40px 20px;color:var(--muted);}
+    .spinner-sm{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
+
+    /* ── Leaderboard ── */
+    .lb-wrap{background:var(--panel);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+    .lb-head{background:rgba(247,92,3,0.06);border-bottom:1px solid rgba(247,92,3,0.15);padding:12px 18px;display:grid;grid-template-columns:36px 1fr 90px 80px 60px;gap:8px;font-family:'Bebas Neue',sans-serif;font-size:.7rem;letter-spacing:2px;color:var(--orange);}
+    .lb-row{padding:11px 18px;display:grid;grid-template-columns:36px 1fr 90px 80px 60px;gap:8px;align-items:center;border-bottom:1px solid var(--border);transition:background .15s;}
+    .lb-row:last-child{border-bottom:none;}
+    .lb-row:hover{background:rgba(255,255,255,.02);}
+    .lb-row.me{background:rgba(247,92,3,.04);}
+    .rank-n{font-family:'Bebas Neue',sans-serif;font-size:1rem;text-align:center;}
+    .rank-1{color:var(--gold)}.rank-2{color:#c0c0c0}.rank-3{color:#cd7f32}
+    .lb-score{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--orange);}
+    .lb-sub{font-size:.75rem;color:var(--muted);}
+    .me-tag{display:inline-block;font-size:.62rem;letter-spacing:1px;padding:2px 6px;border-radius:4px;background:rgba(247,92,3,.1);border:1px solid rgba(247,92,3,.2);color:var(--orange);margin-top:2px;}
+    .lb-empty{text-align:center;padding:48px 20px;color:var(--muted);}
+
+    /* Toast */
+    .toast{position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:.85rem;font-weight:500;z-index:999;opacity:0;transform:translateY(10px);transition:opacity .3s,transform .3s;pointer-events:none;max-width:320px;}
+    .toast.show{opacity:1;transform:translateY(0);}
+    .toast-success{background:rgba(6,214,160,.12);border:1px solid rgba(6,214,160,.3);color:var(--green);}
+    .toast-error{background:rgba(239,35,60,.1);border:1px solid rgba(239,35,60,.25);color:var(--red);}
+    /* ── Slot drop button ── */
+    .slot-drop-btn{
+      position:absolute;top:-4px;right:-4px;
+      width:20px;height:20px;border-radius:50%;
+      background:var(--red);border:1.5px solid var(--court);
+      color:#fff;font-size:9px;cursor:pointer;
+      display:none;align-items:center;justify-content:center;
+      transition:transform .15s;z-index:10;
+      box-shadow:0 2px 6px rgba(0,0,0,0.4);
+    }
+    .slot-filled:hover .slot-drop-btn{display:flex;}
+    .slot-drop-btn:hover{transform:scale(1.2);background:#c0102a;}
+
+    /* ── Selected players list ── */
+    .selected-list{position:relative;z-index:2;border-top:1px solid rgba(255,255,255,0.06);}
+    .sel-list-inner{padding:14px 20px;}
+    .sel-list-title{font-family:'Bebas Neue',sans-serif;font-size:.72rem;letter-spacing:2.5px;color:var(--muted);margin-bottom:10px;}
+    .sel-rows{display:flex;flex-direction:column;gap:6px;}
+    .sel-row{
+      display:flex;align-items:center;gap:10px;
+      padding:8px 12px;border-radius:9px;
+      background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.05);
+      transition:border-color .15s;
+    }
+    .sel-row:hover{border-color:rgba(247,92,3,0.2);}
+    .sel-pos{
+      font-family:'Bebas Neue',sans-serif;font-size:.68rem;letter-spacing:1px;
+      padding:2px 7px;border-radius:5px;flex-shrink:0;color:#fff;
+    }
+    .badge-PG.sel-pos{background:#4cc9f0;color:#000;}
+    .badge-SG.sel-pos{background:#f75c03;}
+    .badge-SF.sel-pos{background:#06d6a0;color:#000;}
+    .badge-PF.sel-pos{background:#ffd166;color:#000;}
+    .badge-C.sel-pos {background:#c084fc;}
+    .sel-name{flex:1;font-size:.84rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .sel-score{font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--gold);flex-shrink:0;}
+    .sel-sal{font-size:.72rem;color:var(--muted);flex-shrink:0;min-width:36px;text-align:right;}
+    .sel-drop{
+      padding:4px 10px;border-radius:6px;cursor:pointer;
+      background:rgba(239,35,60,0.08);border:1px solid rgba(239,35,60,0.2);
+      color:var(--red);font-size:.72rem;font-family:'DM Sans',sans-serif;font-weight:600;
+      transition:background .15s;flex-shrink:0;white-space:nowrap;
+    }
+    .sel-drop:hover{background:var(--red);color:#fff;border-color:var(--red);}
+
+    .hidden{display:none!important;}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    @keyframes slotIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-brand">🏀 NBA Predictor</a>
+  <div class="nav-links">
+    <a href="/"          class="nav-link">Predict</a>
+    <a href="/teams/"    class="nav-link">Teams</a>
+    <a href="/similar/"  class="nav-link">Similarity</a>
+    <a href="/playoffs/" class="nav-link">Playoffs</a>
+    <a href="/fantasy/"  class="nav-link active">Fantasy</a>
+  </div>
+</nav>
+
+<div class="wrapper">
+
+  <!-- ── Setup screen ── -->
+  <div id="setup-screen" class="hidden">
+    <div class="setup-screen">
+      <div class="setup-card">
+        <div class="setup-icon">🏀</div>
+        <h2>BUILD YOUR STARTING 5</h2>
+        <p>Pick 5 starters (one per position) .<br>$100M salary cap · Compete on the leaderboard.</p>
+        <input class="setup-input" id="setup-name" type="text" placeholder="Enter your team name…" maxlength="80"/>
+        <button class="btn-primary" id="setup-btn" onclick="createTeam()">CREATE TEAM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main UI ── -->
+  <div id="main-ui" class="hidden">
+
+    <div class="page-header">
+      <div>
+        <h1>🏀 FANTASY LEAGUE</h1>
+        <p id="hdr-sub">2024-25 · $100M Cap · 5 Starters</p>
+      </div>
+      <div class="tab-switcher">
+        <button class="tab-btn active" id="tab-court" onclick="switchTab('court')">My Team</button>
+        <button class="tab-btn"        id="tab-board" onclick="switchTab('board')">Leaderboard</button>
+      </div>
+    </div>
+
+    <!-- Court tab -->
+    <div id="view-court">
+      <div class="main-grid">
+
+        <!-- Basketball court -->
+        <div>
+          <div class="court-wrap">
+            <!-- SVG court lines -->
+            <svg class="court-lines" viewBox="0 0 600 480" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Center circle -->
+              <circle cx="300" cy="240" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+              <!-- Center line -->
+              <line x1="0" y1="240" x2="600" y2="240" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+              <!-- Three point arcs (top & bottom) -->
+              <path d="M80,0 L80,160 Q300,280 520,160 L520,0" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+              <path d="M80,480 L80,320 Q300,200 520,320 L520,480" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+              <!-- Paint lanes -->
+              <rect x="200" y="0" width="200" height="120" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+              <rect x="200" y="360" width="200" height="120" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+              <!-- Baskets -->
+              <circle cx="300" cy="50" r="15" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+              <circle cx="300" cy="430" r="15" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+            </svg>
+
+            <div class="court-inner">
+              <div class="formation" id="formation">
+                <!-- Row 1: C -->
+                <div class="form-row">
+                  <div class="player-slot slot-empty" id="slot-C" onclick="openPicker('C')">
+                    <div class="slot-circle">
+                      <div class="slot-pos-badge badge-C">C</div>
+                    </div>
+                    <div class="slot-name">CENTER</div>
+                    <div class="slot-pos-label">Click to pick</div>
+                  </div>
+                </div>
+                <!-- Row 2: PF + SF -->
+                <div class="form-row">
+                  <div class="player-slot slot-empty" id="slot-PF" onclick="openPicker('PF')">
+                    <div class="slot-circle">
+                      <div class="slot-pos-badge badge-PF">PF</div>
+                    </div>
+                    <div class="slot-name">POWER FWD</div>
+                    <div class="slot-pos-label">Click to pick</div>
+                  </div>
+                  <div class="player-slot slot-empty" id="slot-SF" onclick="openPicker('SF')">
+                    <div class="slot-circle">
+                      <div class="slot-pos-badge badge-SF">SF</div>
+                    </div>
+                    <div class="slot-name">SMALL FWD</div>
+                    <div class="slot-pos-label">Click to pick</div>
+                  </div>
+                </div>
+                <!-- Row 3: PG + SG -->
+                <div class="form-row">
+                  <div class="player-slot slot-empty" id="slot-PG" onclick="openPicker('PG')">
+                    <div class="slot-circle">
+                      <div class="slot-pos-badge badge-PG">PG</div>
+                    </div>
+                    <div class="slot-name">POINT GUARD</div>
+                    <div class="slot-pos-label">Click to pick</div>
+                  </div>
+                  <div class="player-slot slot-empty" id="slot-SG" onclick="openPicker('SG')">
+                    <div class="slot-circle">
+                      <div class="slot-pos-badge badge-SG">SG</div>
+                    </div>
+                    <div class="slot-name">SHOOT GUARD</div>
+                    <div class="slot-pos-label">Click to pick</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Selected players list -->
+            <div class="selected-list" id="selected-list"></div>
+
+            <!-- Team stats bar -->
+            <div class="team-stats-bar">
+              <div class="stat-cell"><div class="lbl">Fantasy Score</div><div class="val" id="bar-score">0.0</div></div>
+              <div class="stat-cell"><div class="lbl">Avg PTS</div><div class="val" id="bar-pts">—</div></div>
+              <div class="stat-cell"><div class="lbl">Avg AST</div><div class="val" id="bar-ast">—</div></div>
+              <div class="stat-cell"><div class="lbl">Avg REB</div><div class="val" id="bar-reb">—</div></div>
+              <div class="stat-cell"><div class="lbl">Budget Left</div><div class="val" id="bar-budget">$100M</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right panel -->
+        <div class="right-panel">
+          <div class="panel-card">
+            <div class="panel-title">MY TEAM</div>
+            <div class="team-name-row">
+              <div class="team-avatar" id="team-avatar">?</div>
+              <div class="team-name-txt" id="team-name-txt">—</div>
+              <div class="team-rank-badge" id="team-rank">#—</div>
+            </div>
+            <div class="metrics-row">
+              <div class="metric-box"><div class="lbl">Total Score</div><div class="val" id="m-score">0.0</div></div>
+              <div class="metric-box"><div class="lbl">Players</div><div class="val" id="m-count">0/5</div></div>
+            </div>
+            <div class="budget-row-txt">
+              <span>Budget Used</span>
+              <span id="budget-txt">$0 / $100M</span>
+            </div>
+            <div class="budget-bar">
+              <div class="budget-fill" id="budget-fill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-title">SCORING FORMULA</div>
+            <div class="formula-grid">
+              <div class="formula-chip"><span class="stat">PTS</span> <span class="mult">×1.0</span></div>
+              <div class="formula-chip"><span class="stat">AST</span> <span class="mult">×1.5</span></div>
+              <div class="formula-chip"><span class="stat">REB</span> <span class="mult">×1.2</span></div>
+              <div class="formula-chip"><span class="stat">STL</span> <span class="mult">×2.0</span></div>
+              <div class="formula-chip"><span class="stat">BLK</span> <span class="mult">×2.0</span></div>
+              <div class="formula-chip"><span class="stat">TOV</span> <span class="mult">×−1</span></div>
+              <div class="formula-chip"><span class="stat">FG%</span> <span class="mult">×10</span></div>
+              <div class="formula-chip"><span class="stat">3P%</span> <span class="mult">×8</span></div>
+              <div class="formula-chip"><span class="stat">FT%</span> <span class="mult">×5</span></div>
+              <div class="formula-chip"><span class="stat">MP</span>  <span class="mult">×0.1</span></div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-title">HOW TO DRAFT</div>
+            <div style="font-size:.82rem;color:var(--muted);line-height:1.8">
+              1. Click any position slot on the court<br>
+              2. Choose a player from the list<br>
+              3. Click a filled slot to swap the player<br>
+              4. Hover a slot and click ✕ to remove<br>
+              5. Check the leaderboard to compete
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Leaderboard tab -->
+    <div class="hidden" id="view-board">
+      <div class="lb-wrap">
+        <div class="lb-head">
+          <div>#</div><div>TEAM</div><div>SCORE</div><div>SPENT</div><div>PLY</div>
+        </div>
+        <div id="lb-body"><div class="lb-empty">Loading…</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Player picker drawer -->
+<div class="picker-overlay" id="picker-overlay" onclick="closePicker(event)">
+  <div class="picker-drawer" id="picker-drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-header">
+      <div class="drawer-pos-title">
+        <div class="drawer-pos-badge" id="drawer-badge"></div>
+        <div>
+          <h3 id="drawer-title">Pick a Player</h3>
+          <p id="drawer-sub">Choose your starter</p>
+        </div>
+      </div>
+      <input class="drawer-search" id="drawer-search" type="text" placeholder="Search player…" oninput="filterPicker()"/>
+    </div>
+    <div class="drawer-list" id="drawer-list"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+const POS_COLORS   = {PG:'#4cc9f0',SG:'#f75c03',SF:'#06d6a0',PF:'#ffd166',C:'#c084fc'};
+const POS_NAMES    = {PG:'Point Guard',SG:'Shooting Guard',SF:'Small Forward',PF:'Power Forward',C:'Center'};
+const AVATAR_COLORS= ['#f75c03','#4cc9f0','#06d6a0','#c084fc','#ffd166','#ef233c','#2d6a8a','#028a60'];
+
+let myTeam       = null;
+let rosterByPos  = {};     // {PG: playerObj, SG: playerObj, ...}
+let pickerPos    = null;   // currently open position
+let allPlayers   = {};     // {PG: [...], SG: [...], ...}
+let pickerFilter = '';
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  await loadMyTeam();
+  initNav();
+}
+
+async function loadMyTeam() {
+  try {
+    const res  = await fetch(`${API}/api/fantasy/my-team/`, {credentials:'include'});
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch(e) {}
+
+    if (!res.ok || !data.exists) {
+      document.getElementById('setup-screen').classList.remove('hidden');
+      return;
+    }
+
+    myTeam = data;
+    rosterByPos = {};
+    (data.roster || []).forEach(r => { rosterByPos[r.position] = r; });
+
+    document.getElementById('main-ui').classList.remove('hidden');
+    renderCourt();
+    renderRightPanel();
+  } catch(e) {
+    document.getElementById('setup-screen').classList.remove('hidden');
+  }
+}
+
+// ── Create team ───────────────────────────────────────────────────────────────
+async function createTeam() {
+  const name = document.getElementById('setup-name').value.trim();
+  if (!name) { showToast('Enter a team name.', 'error'); return; }
+  const btn = document.getElementById('setup-btn');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res  = await fetch(`${API}/api/fantasy/my-team/`, {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({team_name: name})
+    });
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch(e) {}
+    if (!res.ok) throw new Error(data.error || data.detail || `Error ${res.status}: ${text.slice(0,100)}`);
+    document.getElementById('setup-screen').classList.add('hidden');
+    await loadMyTeam();
+    showToast(`🏀 ${name} created! Pick your starting 5 .`, 'success');
+  } catch(e) {
+    showToast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'CREATE TEAM';
+  }
+}
+
+// ── Render court ──────────────────────────────────────────────────────────────
+function initials(name) {
+  return name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+}
+
+function renderCourt() {
+  ['PG','SG','SF','PF','C'].forEach(pos => {
+    const slot = document.getElementById(`slot-${pos}`);
+    const p    = rosterByPos[pos];
+    if (p) {
+      slot.className = 'player-slot slot-filled';
+      slot.onclick   = () => openPicker(pos);
+      slot.innerHTML = `
+        <div class="slot-circle">
+          <div class="slot-avatar">${initials(p.player_name)}</div>
+          <div class="slot-pos-badge badge-${pos}">${pos}</div>
+          <button class="slot-drop-btn" onclick="event.stopPropagation();dropPlayer('${p.player_name.replace(/'/g,"\'")}')">✕</button>
+        </div>
+        <div class="slot-name">${p.player_name.split(' ').slice(-1)[0].toUpperCase()}</div>
+        <div class="slot-pos-label">${POS_NAMES[pos]}</div>
+        <div class="slot-score">${p.fantasy_score.toFixed(1)} pts</div>`;
+    } else {
+      slot.className = 'player-slot slot-empty';
+      slot.onclick   = () => openPicker(pos);
+      slot.innerHTML = `
+        <div class="slot-circle">
+          <div class="slot-pos-badge badge-${pos}">${pos}</div>
+        </div>
+        <div class="slot-name">${pos === 'C' ? 'CENTER' : pos === 'PG' ? 'POINT GUARD' : pos === 'SG' ? 'SHOOT GUARD' : pos === 'PF' ? 'POWER FWD' : 'SMALL FWD'}</div>
+        <div class="slot-pos-label">Click to pick</div>`;
+    }
+  });
+  renderStatsBar();
+  renderSelectedList();
+}
+
+function renderSelectedList() {
+  const el = document.getElementById('selected-list');
+  if (!el) return;
+  const allRoster = myTeam?.roster || [];
+  const starters  = allRoster.filter(r => r.position !== 'BENCH');
+  const bench     = allRoster.filter(r => r.position === 'BENCH');
+  if (!allRoster.length) { el.innerHTML = ''; return; }
+
+  const makeRow = (p, pos) => `
+    <div class="sel-row">
+      <span class="sel-pos badge-${pos}" style="${pos==='BENCH'?'background:#555;color:#fff':''}">${pos}</span>
+      <span class="sel-name">${p.player_name}</span>
+      <span class="sel-score">${p.fantasy_score.toFixed(1)}</span>
+      <span class="sel-sal">$${(p.salary/1e6).toFixed(0)}M</span>
+      <button class="sel-drop" onclick="dropPlayer('${p.player_name.replace(/'/g,"\'")}')">✕ Remove</button>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="sel-list-inner">
+      <div class="sel-list-title">SELECTED PLAYERS</div>
+      <div class="sel-rows">
+        ${starters.map(p => makeRow(p, p.position)).join('')}
+        ${bench.map(p => makeRow(p, 'BENCH')).join('')}
+      </div>
+    </div>`;
+}
+
+function renderStatsBar() {
+  const roster = Object.values(rosterByPos);
+  const avg    = (key) => roster.length ? (roster.reduce((s,r) => s+(r[key]||0), 0)/roster.length).toFixed(1) : '—';
+  const totalScore  = roster.reduce((s,r) => s+r.fantasy_score, 0);
+  const totalSpent  = myTeam ? myTeam.total_spent : 0;
+  const budgetLeft  = 100_000_000 - totalSpent;
+
+  document.getElementById('bar-score').textContent  = totalScore.toFixed(1);
+  document.getElementById('bar-pts').textContent    = avg('PTS');
+  document.getElementById('bar-ast').textContent    = avg('AST');
+  document.getElementById('bar-reb').textContent    = avg('TRB');
+  document.getElementById('bar-budget').textContent = `$${(budgetLeft/1e6).toFixed(0)}M`;
+}
+
+function renderRightPanel() {
+  if (!myTeam) return;
+  const name    = myTeam.team_name;
+  const init    = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const pctUsed = myTeam.total_spent / myTeam.budget_cap * 100;
+
+  document.getElementById('team-avatar').textContent   = init;
+  document.getElementById('team-name-txt').textContent = name;
+  document.getElementById('team-rank').textContent     = `#${myTeam.rank || '—'}`;
+  document.getElementById('m-score').textContent       = myTeam.total_score.toFixed(1);
+  document.getElementById('m-count').textContent       = `${myTeam.roster_count}/5`;
+  document.getElementById('budget-txt').textContent    = `$${(myTeam.total_spent/1e6).toFixed(1)}M / $100M`;
+
+  const fill = document.getElementById('budget-fill');
+  fill.style.width = Math.min(pctUsed, 100) + '%';
+  fill.classList.toggle('danger', pctUsed > 80);
+}
+
+// ── Player picker ─────────────────────────────────────────────────────────────
+async function openPicker(pos) {
+  pickerPos    = pos;
+  pickerFilter = '';
+
+  // Mark slot as picking
+  document.querySelectorAll('.player-slot').forEach(s => s.classList.remove('picking'));
+  document.getElementById(`slot-${pos}`).classList.add('picking');
+
+  // Setup drawer header
+  document.getElementById('drawer-badge').textContent   = pos;
+  document.getElementById('drawer-badge').style.cssText = `background:${POS_COLORS[pos]};color:${pos==='SG'||pos==='C'?'#fff':'#000'}`;
+  document.getElementById('drawer-title').textContent   = `Pick ${POS_NAMES[pos]}`;
+  const _bl = myTeam ? (myTeam.budget_cap - myTeam.total_spent) : 100_000_000;
+  document.getElementById('drawer-sub').textContent = `$${(_bl/1e6).toFixed(1)}M remaining — showing affordable players only`;
+  document.getElementById('drawer-search').value        = '';
+
+  // Open overlay
+  document.getElementById('picker-overlay').classList.add('open');
+  document.getElementById('drawer-list').innerHTML = '<div class="drawer-loading"><div class="spinner-sm"></div>Loading players…</div>';
+
+  // Always refetch to get current budget-filtered list
+  const budgetLeft = myTeam ? (myTeam.budget_cap - myTeam.total_spent) : 100_000_000;
+  await fetchPlayersForPos(pos, budgetLeft);
+  renderPickerList();
+  document.getElementById('drawer-search').focus();
+}
+
+async function fetchPlayersForPos(pos, budgetLeft) {
+  try {
+    const maxSal = budgetLeft != null ? `&max_salary=${budgetLeft}` : '';
+    const url = pos === 'BENCH'
+      ? `${API}/api/fantasy/players/?per_page=200&sort=fantasy_score${maxSal}`
+      : `${API}/api/fantasy/players/?pos=${pos}&per_page=200&sort=fantasy_score${maxSal}`;
+    const res  = await fetch(url, {credentials:'include'});
+    const data = await res.json();
+    allPlayers[pos] = data.players || [];
+  } catch(e) {
+    allPlayers[pos] = [];
+  }
+}
+
+function filterPicker() {
+  pickerFilter = document.getElementById('drawer-search').value.toLowerCase().trim();
+  renderPickerList();
+}
+
+function renderPickerList() {
+  const players = allPlayers[pickerPos] || [];
+  const budgetLeft = myTeam ? (myTeam.budget_cap - myTeam.total_spent) : 100_000_000;
+  const currentInSlot = rosterByPos[pickerPos];
+
+  // If swapping, restore budget for current player in that slot
+  const effectiveBudget = currentInSlot ? budgetLeft + currentInSlot.salary : budgetLeft;
+
+  let filtered = players;
+  if (pickerFilter) {
+    filtered = players.filter(p => p.name.toLowerCase().includes(pickerFilter));
+  }
+
+  if (!filtered.length) {
+    document.getElementById('drawer-list').innerHTML =
+      `<div class="drawer-empty">No ${POS_NAMES[pickerPos]}s found.</div>`;
+    return;
+  }
+
+  document.getElementById('drawer-list').innerHTML = filtered.map((p, i) => {
+    const isSelected   = currentInSlot && currentInSlot.player_name === p.name;
+    const tooExpensive = p.salary > effectiveBudget && !isSelected;
+    const color        = AVATAR_COLORS[i % AVATAR_COLORS.length];
+    const fmt          = (v, pct) => v==null?'—': pct?(v*100).toFixed(1)+'%':v;
+
+    return `
+      <div class="pick-row ${isSelected?'selected':''} ${tooExpensive?'disabled':''}"
+        onclick="${tooExpensive?'':` selectPlayer('${p.name.replace(/'/g,"\\'")}')`}">
+        <div class="pick-avatar" style="background:${color}">${initials(p.name)}</div>
+        <div class="pick-info">
+          <div class="pick-name">${p.name}</div>
+          <div class="pick-meta">${p.team} · ${fmt(p.PTS)} PTS · ${fmt(p.AST)} AST · ${fmt(p.TRB)} REB</div>
+        </div>
+        <span class="pick-tier tier-${p.tier}">${p.tier}</span>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="pick-score">${p.fantasy_score.toFixed(1)}</div>
+          <div class="pick-salary" style="${tooExpensive?'color:var(--red)':''}">$${(p.salary/1e6).toFixed(0)}M</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function selectPlayer(name) {
+  const currentInSlot = rosterByPos[pickerPos];
+
+  // Drop current player in that slot first
+  if (currentInSlot) {
+    await dropPlayer(currentInSlot.player_name, false);
+  }
+
+  closePicker();
+
+  try {
+    const res  = await fetch(`${API}/api/fantasy/add/`, {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({player_name: name})
+    });
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch(e) {}
+    if (!res.ok) throw new Error(data.error || data.detail || `Error ${res.status}`);
+
+    // Refresh
+    await refreshTeam();
+    showToast(`✅ ${name} is on the court!`, 'success');
+  } catch(e) {
+    showToast(e.message, 'error');
+    await refreshTeam();
+  }
+}
+
+async function dropPlayer(name, refresh=true) {
+  try {
+    const res = await fetch(`${API}/api/fantasy/drop/`, {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({player_name: name})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (refresh) { await refreshTeam(); showToast(`Removed ${name}.`, 'success'); }
+    else {
+      // Update local state immediately for budget calc
+      const pos = Object.keys(rosterByPos).find(p => rosterByPos[p]?.player_name === name);
+      if (pos) delete rosterByPos[pos];
+      if (myTeam) {
+        myTeam.total_spent  = data.total_spent;
+        myTeam.total_score  = data.total_score;
+        myTeam.budget_left  = data.budget_left;
+        myTeam.roster_count = data.roster_count;
+        myTeam.roster = (myTeam.roster || []).filter(r => r.player_name !== name);
+      }
+    }
+  } catch(e) {
+    if (refresh) showToast(e.message, 'error');
+  }
+}
+
+function closePicker(e) {
+  if (e && e.target !== document.getElementById('picker-overlay')) return;
+  document.getElementById('picker-overlay').classList.remove('open');
+  document.querySelectorAll('.player-slot').forEach(s => s.classList.remove('picking'));
+  pickerPos = null;
+}
+
+async function refreshTeam() {
+  const res  = await fetch(`${API}/api/fantasy/my-team/`, {credentials:'include'});
+  const data = await res.json();
+  if (res.ok && data.exists) {
+    myTeam = data;
+    rosterByPos = {};
+    (data.roster || []).forEach(r => { rosterByPos[r.position] = r; });
+    // Invalidate player cache so budget is recalculated
+    allPlayers = {};
+    renderCourt();
+    renderRightPanel();
+  }
+}
+
+// ── Tab switcher ──────────────────────────────────────────────────────────────
+async function switchTab(tab) {
+  document.getElementById('tab-court').classList.toggle('active', tab==='court');
+  document.getElementById('tab-board').classList.toggle('active', tab==='board');
+  document.getElementById('view-court').classList.toggle('hidden', tab!=='court');
+  document.getElementById('view-board').classList.toggle('hidden', tab!=='board');
+  if (tab === 'board') await loadLeaderboard();
+}
+
+// ── Leaderboard ───────────────────────────────────────────────────────────────
+async function loadLeaderboard() {
+  try {
+    const res  = await fetch(`${API}/api/fantasy/leaderboard/`, {credentials:'include'});
+    const data = await res.json();
+    const medals = ['🥇','🥈','🥉'];
+    const body   = document.getElementById('lb-body');
+    if (!data.leaderboard?.length) { body.innerHTML='<div class="lb-empty">No teams yet. Be the first!</div>'; return; }
+    body.innerHTML = data.leaderboard.map(t => `
+      <div class="lb-row${t.is_me?' me':''}">
+        <div class="rank-n rank-${t.rank}">${medals[t.rank-1]||t.rank}</div>
+        <div>
+          <div style="font-weight:600;font-size:.88rem">${t.team_name}</div>
+          <div class="lb-sub">${t.full_name||t.username} ${t.is_me?'<span class="me-tag">YOU</span>':''}</div>
+        </div>
+        <div class="lb-score">${t.total_score.toFixed(1)}</div>
+        <div class="lb-sub">$${(t.total_spent/1e6).toFixed(1)}M</div>
+        <div class="lb-sub">${t.roster_count}/5</div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Auth nav ──────────────────────────────────────────────────────────────────
+async function initNav() {
+  try {
+    const res = await fetch('/auth/me/');
+    const d   = await res.json();
+    const nl  = document.querySelector('.nav-links');
+    if (!nl || !d.authenticated) return;
+    const i = (d.full_name||d.username).split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+    const p = document.createElement('div');
+    p.style.cssText='display:flex;align-items:center;gap:8px;margin-left:8px;padding:4px 4px 4px 12px;border-radius:20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);';
+    p.innerHTML=`<span style="font-size:.82rem;color:#e2e2ee;font-weight:500">${d.full_name||d.username}</span><div style="width:28px;height:28px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:11px;color:#fff">${i}</div><button onclick="doLogout()" style="background:none;border:none;cursor:pointer;color:#5a5a7a;padding:4px 6px;font-size:12px">✕</button>`;
+    nl.appendChild(p);
+  } catch(e){}
+}
+async function doLogout(){await fetch('/auth/logout/',{method:'POST'});window.location.href='/login/';}
+
+init();
+</script>
+</body>
+</html>

@@ -212,10 +212,11 @@
 <nav>
   <a href="/" class="nav-brand">🏀 NBA Predictor</a>
   <div class="nav-links">
-    <a href="/"         class="nav-link">Predict</a>
-    <a href="/teams/"   class="nav-link">Teams</a>
+    <a href="/" class="nav-link">Predict</a>
+    <a href="/teams/" class="nav-link">Teams</a>
     <a href="/similar/" class="nav-link active">Similarity</a>
-    <a href="/login/" class="nav-link" style="color:var(--gold);border:1px solid rgba(255,209,102,0.2);margin-left:8px">⚡ Login</a>
+    <a href="/playoffs/" class="nav-link">Playoffs</a>
+    <a href="/fantasy/" class="nav-link">Fantasy</a>
   </div>
 </nav>
 <div class="wrapper">
@@ -341,7 +342,7 @@ function renderResults(data){
       <div class="sim-right">
         <div class="sim-pct">${p.similarity}%</div>
         <div class="bar-wrap"><div class="bar-fill" data-w="${p.similarity}"></div></div>
-        {% comment %} <button class="btn-predict-sm" onclick="goPredict('${p.name.replace(/'/g,"\\'")}',${JSON.stringify(p)})">⚡ Predict</button> {% endcomment %}
+        <button class="btn-predict-sm" onclick="goPredict('${p.name.replace(/'/g,"\\'")}',${JSON.stringify(p)})">⚡ Predict</button>
       </div>
     </div>`).join('');
   document.getElementById('results-container').classList.remove('hidden');
@@ -356,6 +357,41 @@ loadPlayers().then(()=>{
   const q=new URLSearchParams(window.location.search).get('q');
   if(q){input.value=q;doSearch();}
 });
+</script>
+
+<script>
+// ── Auth nav ─────────────────────────────────────────────────────────────────
+(async function initNav() {
+  try {
+    const res  = await fetch('/auth/me/');
+    const data = await res.json();
+    const navLinks = document.querySelector('.nav-links');
+    if (!navLinks) return;
+    if (data.authenticated) {
+      const initials = data.full_name
+        ? data.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
+        : data.username.slice(0,2).toUpperCase();
+      // Remove old login button if present
+      navLinks.querySelectorAll('a[href="/login/"]').forEach(el => el.remove());
+      // Add user pill
+      const pill = document.createElement('div');
+      pill.style.cssText = 'display:flex;align-items:center;gap:8px;margin-left:8px;padding:4px 4px 4px 12px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);';
+      pill.innerHTML = `
+        <span style="font-size:0.82rem;color:#e2e2ee;font-weight:500;">${data.full_name || data.username}</span>
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:1px;color:#fff;flex-shrink:0;">${initials}</div>
+        <button onclick="doLogout()" style="background:none;border:none;cursor:pointer;color:#5a5a7a;padding:4px 6px;border-radius:6px;font-size:12px;transition:color 0.15s;" onmouseover="this.style.color='#ef233c'" onmouseout="this.style.color='#5a5a7a'" title="Sign out">✕</button>
+      `;
+      navLinks.appendChild(pill);
+    } else {
+      window.location.href = '/login/';
+    }
+  } catch(e) { console.warn('Nav auth check failed:', e); }
+})();
+
+async function doLogout() {
+  await fetch('/auth/logout/', { method: 'POST' });
+  window.location.href = '/login/';
+}
 </script>
 </body>
 </html>

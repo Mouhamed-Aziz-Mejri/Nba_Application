@@ -8,11 +8,16 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# ── Add these to your existing nba_project/settings.py ──────────────────────
+#
+# 1. Make sure 'django.contrib.auth' and 'django.contrib.sessions'
+#    are in INSTALLED_APPS (they usually are by default):
+#
 INSTALLED_APPS = [
     'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
+    'django.contrib.auth',          # ← required
+    'django.contrib.contenttypes',  # ← required by auth
+    'django.contrib.sessions',      # ← required for login sessions
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
@@ -20,15 +25,26 @@ INSTALLED_APPS = [
     'predictor',
 ]
 
+# 2. Make sure SessionMiddleware and AuthenticationMiddleware are in MIDDLEWARE:
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',   # ← required
     'django.middleware.common.CommonMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',            # ← keep disabled
+    'django.contrib.auth.middleware.AuthenticationMiddleware', # ← required
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# 3. Session settings (add these):
+SESSION_ENGINE        = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE    = 60 * 60 * 24 * 30   # 30 days
+SESSION_COOKIE_NAME   = 'nba_sessionid'
+LOGIN_URL             = '/login/'
+LOGIN_REDIRECT_URL    = '/'
+
+
 
 ROOT_URLCONF = 'nba_project.urls'
 
@@ -80,3 +96,24 @@ CORS_ALLOW_HEADERS = [
     'authorization',
     'x-requested-with',
 ]
+# ── ADD THESE LINES TO nba_project/settings.py ──────────────────────────────
+
+# Session configuration
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SECURE   = False        # False for local dev
+SESSION_COOKIE_AGE      = 60 * 60 * 24 * 30
+
+# CORS — must allow credentials so fetch() sends session cookie
+CORS_ALLOW_CREDENTIALS   = True
+
+# Django REST Framework — AllowAny globally, views handle auth manually
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
